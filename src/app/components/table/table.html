@@ -24,10 +24,10 @@
 
         <!-- Dropdown Menu -->
         @if (columnVisibilityDropdownOpen()) {
-          <div class="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+          <div class="absolute top-full left-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
             <!-- Header -->
             <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-              <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Toggle Columns</span>
+              <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Column Options</span>
               <div class="flex gap-2">
                 <button
                   (click)="showAllColumns()"
@@ -45,20 +45,67 @@
             </div>
             <!-- Column List -->
             @for (column of allColumns(); track column.key) {
-              <label
-                class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-              >
+              <div class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+                <!-- Visibility Checkbox -->
                 <input
                   type="checkbox"
                   [checked]="isColumnVisible(column.key)"
                   (change)="toggleColumnVisibility(column.key)"
-                  class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                  title="Toggle visibility"
                 />
-                <span class="text-sm text-gray-700 dark:text-gray-300">{{ column.title }}</span>
+                
+                <!-- Column Name -->
+                <span class="text-sm text-gray-700 dark:text-gray-300 flex-1 truncate">{{ column.title }}</span>
+                
+                <!-- Badges -->
                 @if (column.isComputed) {
-                  <span class="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded">Computed</span>
+                  <span class="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded shrink-0">Computed</span>
                 }
-              </label>
+                
+                <!-- Freeze Controls -->
+                @if (mergedConfig().enableFrozenColumns) {
+                  <div class="flex items-center gap-1 shrink-0">
+                    <!-- Freeze Left Button -->
+                    <button
+                      (click)="toggleFreeze(column.key, 'left'); $event.stopPropagation()"
+                      class="p-1 rounded text-xs transition-colors"
+                      [class.bg-blue-100]="getEffectiveFreezePosition(column) === 'left'"
+                      [class.text-blue-700]="getEffectiveFreezePosition(column) === 'left'"
+                      [class.dark:bg-blue-900]="getEffectiveFreezePosition(column) === 'left'"
+                      [class.dark:text-blue-300]="getEffectiveFreezePosition(column) === 'left'"
+                      [class.text-gray-400]="getEffectiveFreezePosition(column) !== 'left'"
+                      [class.hover:text-gray-600]="getEffectiveFreezePosition(column) !== 'left'"
+                      [class.hover:bg-gray-100]="getEffectiveFreezePosition(column) !== 'left'"
+                      [class.dark:hover:bg-gray-600]="getEffectiveFreezePosition(column) !== 'left'"
+                      title="Freeze to left"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                      </svg>
+                    </button>
+                    
+                    <!-- Freeze Right Button -->
+                    <button
+                      (click)="toggleFreeze(column.key, 'right'); $event.stopPropagation()"
+                      class="p-1 rounded text-xs transition-colors"
+                      [class.bg-blue-100]="getEffectiveFreezePosition(column) === 'right'"
+                      [class.text-blue-700]="getEffectiveFreezePosition(column) === 'right'"
+                      [class.dark:bg-blue-900]="getEffectiveFreezePosition(column) === 'right'"
+                      [class.dark:text-blue-300]="getEffectiveFreezePosition(column) === 'right'"
+                      [class.text-gray-400]="getEffectiveFreezePosition(column) !== 'right'"
+                      [class.hover:text-gray-600]="getEffectiveFreezePosition(column) !== 'right'"
+                      [class.hover:bg-gray-100]="getEffectiveFreezePosition(column) !== 'right'"
+                      [class.dark:hover:bg-gray-600]="getEffectiveFreezePosition(column) !== 'right'"
+                      title="Freeze to right"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+                  </div>
+                }
+              </div>
             }
           </div>
         }
@@ -74,6 +121,19 @@
         </svg>
         Add Column
       </button>
+
+      <!-- Clear Colors Button -->
+      @if (mergedConfig().enableColoring && (rowColors().size > 0 || columnColors().size > 0)) {
+        <button
+          (click)="clearAllTableColors()"
+          class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+          </svg>
+          Clear Colors
+        </button>
+      }
     </div>
 
     <!-- Active Filters Info -->
@@ -97,7 +157,7 @@
     #tableContainer
     class="table-container overflow-auto relative"
     [style.height]="mergedConfig().enableVirtualScroll ? mergedConfig().tableHeight + 'px' : 'auto'"
-    [style.maxHeight]="!mergedConfig().enableVirtualScroll ? mergedConfig().tableHeight + 'px' : 'none'"
+    [style.maxHeight]="!mergedConfig().enableVirtualScroll && pageSize() !== -1 ? mergedConfig().tableHeight + 'px' : 'none'"
     (scroll)="onScroll($event)"
   >
     <!-- Virtual Scroll Spacer -->
@@ -243,13 +303,14 @@
       >
         @for (row of (mergedConfig().enableVirtualScroll ? virtualScrollData().visibleData : paginatedData()); track trackByKey($index, row)) {
           <tr
-            class="transition-colors duration-150"
-            [class.bg-white]="!isRowSelected(row)"
-            [class.dark:bg-gray-900]="!isRowSelected(row)"
-            [class.bg-blue-50]="isRowSelected(row)"
-            [class.dark:bg-blue-900\/30]="isRowSelected(row)"
-            [class.hover:bg-gray-50]="mergedConfig().hoverHighlight && !isRowSelected(row)"
-            [class.dark:hover:bg-gray-800]="mergedConfig().hoverHighlight && !isRowSelected(row)"
+            class="transition-colors duration-150 group/row"
+            [style.backgroundColor]="getRowBackgroundColor(row) || null"
+            [class.bg-white]="!isRowSelected(row) && !getRowBackgroundColor(row)"
+            [class.dark:bg-gray-900]="!isRowSelected(row) && !getRowBackgroundColor(row)"
+            [class.bg-blue-50]="isRowSelected(row) && !getRowBackgroundColor(row)"
+            [class.dark:bg-blue-900\/30]="isRowSelected(row) && !getRowBackgroundColor(row)"
+            [class.hover:bg-gray-50]="mergedConfig().hoverHighlight && !isRowSelected(row) && !getRowBackgroundColor(row)"
+            [class.dark:hover:bg-gray-800]="mergedConfig().hoverHighlight && !isRowSelected(row) && !getRowBackgroundColor(row)"
             [class.cursor-pointer]="mergedConfig().enableRowSelection"
             (click)="toggleRowSelection(row, $event)"
           >
@@ -257,31 +318,48 @@
             @if (mergedConfig().enableRowSelection && mergedConfig().showSelectionCheckbox) {
               <td
                 class="sticky left-0 z-10 w-12 px-3 py-3 text-center border-r border-gray-200 dark:border-gray-700"
-                [class.bg-white]="!isRowSelected(row)"
-                [class.dark:bg-gray-900]="!isRowSelected(row)"
-                [class.bg-blue-50]="isRowSelected(row)"
-                [class.dark:bg-blue-900\/30]="isRowSelected(row)"
+                [style.backgroundColor]="getRowBackgroundColor(row) || null"
+                [class.bg-white]="!isRowSelected(row) && !getRowBackgroundColor(row)"
+                [class.dark:bg-gray-900]="!isRowSelected(row) && !getRowBackgroundColor(row)"
+                [class.bg-blue-50]="isRowSelected(row) && !getRowBackgroundColor(row)"
+                [class.dark:bg-blue-900\/30]="isRowSelected(row) && !getRowBackgroundColor(row)"
                 (click)="$event.stopPropagation()"
               >
-                <input
-                  type="checkbox"
-                  [checked]="isRowSelected(row)"
-                  (change)="toggleRowSelection(row)"
-                  class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                />
+                <div class="flex items-center justify-center gap-1">
+                  <input
+                    type="checkbox"
+                    [checked]="isRowSelected(row)"
+                    (change)="toggleRowSelection(row)"
+                    class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                  />
+                  @if (mergedConfig().enableColoring) {
+                    <button
+                      (click)="openRowColorPicker(row, $event)"
+                      class="p-1 rounded opacity-0 group-hover/row:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+                      title="Set row color"
+                    >
+                      <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                      </svg>
+                    </button>
+                  }
+                </div>
               </td>
             }
 
             <!-- Frozen Left Cells -->
             @for (column of frozenLeftColumns(); track trackByColumn($index, column)) {
               <td
-                class="sticky z-10 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 truncate"
+                class="sticky z-10 px-4 py-3 text-sm border-r border-gray-200 dark:border-gray-700 truncate"
                 [style]="getColumnStyle(column)"
                 [style.left]="getFrozenLeftOffset(column)"
-                [class.bg-white]="!isRowSelected(row)"
-                [class.dark:bg-gray-900]="!isRowSelected(row)"
-                [class.bg-blue-50]="isRowSelected(row)"
-                [class.dark:bg-blue-900\/30]="isRowSelected(row)"
+                [style.backgroundColor]="getCellBackgroundColor(row, column.key) || (isRowSelected(row) ? null : 'white')"
+                [style.color]="getCellTextColor(row, column.key) || null"
+                [class.text-gray-700]="!getCellTextColor(row, column.key)"
+                [class.dark:text-gray-300]="!getCellTextColor(row, column.key)"
+                [class.dark:bg-gray-900]="!isRowSelected(row) && !getCellBackgroundColor(row, column.key)"
+                [class.bg-blue-50]="isRowSelected(row) && !getCellBackgroundColor(row, column.key)"
+                [class.dark:bg-blue-900\/30]="isRowSelected(row) && !getCellBackgroundColor(row, column.key)"
                 [title]="getCellValue(row, column)"
               >
                 {{ getCellValue(row, column) }}
@@ -291,24 +369,45 @@
             <!-- Scrollable Cells -->
             @for (column of scrollableColumns(); track trackByColumn($index, column)) {
               <td
-                class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 truncate"
+                class="px-4 py-3 text-sm border-r border-gray-200 dark:border-gray-700 truncate group/cell"
                 [style]="getColumnStyle(column)"
+                [style.backgroundColor]="getCellBackgroundColor(row, column.key) || null"
+                [style.color]="getCellTextColor(row, column.key) || null"
+                [class.text-gray-700]="!getCellTextColor(row, column.key)"
+                [class.dark:text-gray-300]="!getCellTextColor(row, column.key)"
                 [title]="getCellValue(row, column)"
+                (contextmenu)="mergedConfig().enableColoring ? openCellColorPicker(row, column.key, $event) : null; mergedConfig().enableColoring && $event.preventDefault()"
               >
-                {{ getCellValue(row, column) }}
+                <div class="flex items-center gap-2">
+                  <span class="truncate flex-1">{{ getCellValue(row, column) }}</span>
+                  @if (mergedConfig().enableColoring) {
+                    <button
+                      (click)="openCellColorPicker(row, column.key, $event)"
+                      class="p-1 rounded opacity-0 group-hover/cell:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
+                      title="Set cell color"
+                    >
+                      <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                      </svg>
+                    </button>
+                  }
+                </div>
               </td>
             }
 
             <!-- Frozen Right Cells -->
             @for (column of frozenRightColumns(); track trackByColumn($index, column)) {
               <td
-                class="sticky z-10 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 border-l border-gray-200 dark:border-gray-700 truncate"
+                class="sticky z-10 px-4 py-3 text-sm border-l border-gray-200 dark:border-gray-700 truncate"
                 [style]="getColumnStyle(column)"
                 [style.right]="getFrozenRightOffset(column)"
-                [class.bg-white]="!isRowSelected(row)"
-                [class.dark:bg-gray-900]="!isRowSelected(row)"
-                [class.bg-blue-50]="isRowSelected(row)"
-                [class.dark:bg-blue-900\/30]="isRowSelected(row)"
+                [style.backgroundColor]="getCellBackgroundColor(row, column.key) || (isRowSelected(row) ? null : 'white')"
+                [style.color]="getCellTextColor(row, column.key) || null"
+                [class.text-gray-700]="!getCellTextColor(row, column.key)"
+                [class.dark:text-gray-300]="!getCellTextColor(row, column.key)"
+                [class.dark:bg-gray-900]="!isRowSelected(row) && !getCellBackgroundColor(row, column.key)"
+                [class.bg-blue-50]="isRowSelected(row) && !getCellBackgroundColor(row, column.key)"
+                [class.dark:bg-blue-900\/30]="isRowSelected(row) && !getCellBackgroundColor(row, column.key)"
                 [title]="getCellValue(row, column)"
               >
                 {{ getCellValue(row, column) }}
@@ -346,57 +445,63 @@
           class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           @for (size of mergedConfig().pageSizeOptions; track size) {
-            <option [value]="size">{{ size }}</option>
+            <option [value]="size">{{ size === -1 ? 'All' : size }}</option>
           }
         </select>
       </div>
 
       <!-- Page Info -->
       <div class="text-sm text-gray-600 dark:text-gray-400">
-        Showing {{ (currentPage() - 1) * pageSize() + 1 }} to {{ Math.min(currentPage() * pageSize(), totalItems()) }} of {{ totalItems() }} entries
-      </div>
-
-      <!-- Pagination Controls -->
-      <div class="flex items-center gap-1">
-        <button
-          (click)="goToPreviousPage()"
-          [disabled]="currentPage() === 1"
-          class="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-          </svg>
-        </button>
-
-        @for (page of pageNumbers(); track page) {
-          @if (page === '...') {
-            <span class="px-2 py-1 text-gray-400">...</span>
-          } @else {
-            <button
-              (click)="goToPage(page)"
-              class="min-w-[36px] px-3 py-1 rounded-md text-sm font-medium transition-colors"
-              [class.bg-blue-600]="currentPage() === page"
-              [class.text-white]="currentPage() === page"
-              [class.text-gray-600]="currentPage() !== page"
-              [class.dark:text-gray-400]="currentPage() !== page"
-              [class.hover:bg-gray-200]="currentPage() !== page"
-              [class.dark:hover:bg-gray-700]="currentPage() !== page"
-            >
-              {{ page }}
-            </button>
-          }
+        @if (pageSize() === -1) {
+          Showing all {{ totalItems() }} entries
+        } @else {
+          Showing {{ (currentPage() - 1) * pageSize() + 1 }} to {{ Math.min(currentPage() * pageSize(), totalItems()) }} of {{ totalItems() }} entries
         }
-
-        <button
-          (click)="goToNextPage()"
-          [disabled]="currentPage() === totalPages()"
-          class="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-          </svg>
-        </button>
       </div>
+
+      <!-- Pagination Controls (hidden when showing all) -->
+      @if (pageSize() !== -1) {
+        <div class="flex items-center gap-1">
+          <button
+            (click)="goToPreviousPage()"
+            [disabled]="currentPage() === 1"
+            class="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+
+          @for (page of pageNumbers(); track page) {
+            @if (page === '...') {
+              <span class="px-2 py-1 text-gray-400">...</span>
+            } @else {
+              <button
+                (click)="goToPage(page)"
+                class="min-w-[36px] px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                [class.bg-blue-600]="currentPage() === page"
+                [class.text-white]="currentPage() === page"
+                [class.text-gray-600]="currentPage() !== page"
+                [class.dark:text-gray-400]="currentPage() !== page"
+                [class.hover:bg-gray-200]="currentPage() !== page"
+                [class.dark:hover:bg-gray-700]="currentPage() !== page"
+              >
+                {{ page }}
+              </button>
+            }
+          }
+
+          <button
+            (click)="goToNextPage()"
+            [disabled]="currentPage() === totalPages()"
+            class="p-2 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+        </div>
+      }
     </div>
   }
 </div>
@@ -404,6 +509,14 @@
 <!-- Header Content Template -->
 <ng-template #headerContent let-column="column">
   <div class="flex items-center gap-2">
+    <!-- Column Color Indicator -->
+    @if (mergedConfig().enableColoring && getColumnBackgroundColor(column.key)) {
+      <span 
+        class="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-500 shrink-0"
+        [style.backgroundColor]="getColumnBackgroundColor(column.key)"
+      ></span>
+    }
+
     <!-- Column Title -->
     <span class="truncate">{{ column.title }}</span>
 
@@ -431,6 +544,19 @@
       <span class="flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-600 rounded-full">
         {{ order }}
       </span>
+    }
+
+    <!-- Column Color Picker Button -->
+    @if (mergedConfig().enableColoring) {
+      <button
+        (click)="openColumnColorPicker(column.key, $event)"
+        class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+        title="Set column color"
+      >
+        <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+        </svg>
+      </button>
     }
   </div>
 </ng-template>
@@ -639,4 +765,63 @@
 <!-- Backdrop to close dropdown when clicking outside -->
 @if (columnVisibilityDropdownOpen()) {
   <div class="fixed inset-0 z-40" (click)="closeColumnVisibilityDropdown()"></div>
+}
+
+<!-- Color Picker Popup -->
+@if (activeColorPicker()) {
+  <div class="fixed inset-0 z-50" (click)="closeColorPicker()">
+    <div 
+      class="absolute bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 w-64"
+      [style.left.px]="activeColorPicker()!.position.x"
+      [style.top.px]="activeColorPicker()!.position.y"
+      [style.transform]="'translate(-50%, 8px)'"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          @switch (activeColorPicker()!.type) {
+            @case ('row') { Row Color }
+            @case ('column') { Column Color }
+            @case ('cell') { Cell Color }
+          }
+        </h3>
+        <button
+          (click)="closeColorPicker()"
+          class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Color Grid -->
+      <div class="grid grid-cols-5 gap-2">
+        @for (color of colorPalette; track color.value) {
+          <button
+            (click)="applyColor(color.value)"
+            class="w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            [style.backgroundColor]="color.value || '#ffffff'"
+            [class.border-gray-300]="color.value"
+            [class.border-gray-400]="!color.value"
+            [class.dark:border-gray-500]="color.value"
+            [class.dark:border-gray-400]="!color.value"
+            [title]="color.name"
+          >
+            @if (!color.value) {
+              <svg class="w-full h-full text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            }
+          </button>
+        }
+      </div>
+
+      <!-- Hint -->
+      <p class="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">
+        Click a color to apply, or ✕ to remove
+      </p>
+    </div>
+  </div>
 }

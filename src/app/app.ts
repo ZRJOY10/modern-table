@@ -34,7 +34,7 @@ export class App {
     enableVirtualScroll: false,
     enableFrozenColumns: true,
     pageSize: 10,
-    pageSizeOptions: [5, 10, 25, 50, 100],
+    pageSizeOptions: [10, 20, 50, 100, -1],
     selectionMode: 'multiple',
     showSelectionCheckbox: true,
     stripedRows: true,

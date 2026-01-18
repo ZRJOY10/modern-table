@@ -11,3 +11,5 @@ export * from './virtual-scroll.feature';
 export * from './column-utils.feature';
 export * from './column-visibility.feature';
 export * from './computed-columns.feature';
+export * from './coloring.feature';
+export * from './column-freeze.feature';

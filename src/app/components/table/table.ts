@@ -124,6 +124,32 @@ import {
   computeColumnValue,
   computedColumnToColumnConfig,
   CONDITION_OPERATORS,
+  // Coloring
+  ColoringState,
+  ColorPickerContext,
+  ColorOption,
+  COLOR_PALETTE,
+  createColoringState,
+  openColorPicker,
+  closeColorPicker,
+  setRowColor,
+  getRowColor,
+  setColumnColor,
+  getColumnColor,
+  setCellColor,
+  getResolvedCellColor,
+  getTextColorForBackground,
+  clearAllColors,
+  // Column Freeze
+  ColumnFreezeState,
+  createColumnFreezeState,
+  freezeColumnLeft,
+  freezeColumnRight,
+  unfreezeColumn,
+  toggleColumnFreeze,
+  getColumnFreezePosition,
+  isColumnFrozen,
+  applyDynamicFreeze,
 } from './features';
 
 @Component({
@@ -173,6 +199,8 @@ export class Table<T extends Record<string, any> = any> {
   private readonly virtualScrollState: VirtualScrollState = createVirtualScrollState();
   private readonly columnVisibilityState: ColumnVisibilityState = createColumnVisibilityState();
   private readonly computedColumnsState: ComputedColumnsState = createComputedColumnsState();
+  private readonly coloringState: ColoringState = createColoringState();
+  private readonly columnFreezeState: ColumnFreezeState = createColumnFreezeState();
 
   // Expose state signals for template
   protected readonly sorts = this.sortingState.sorts;
@@ -192,6 +220,12 @@ export class Table<T extends Record<string, any> = any> {
   // Computed column form state
   protected readonly currentComputedColumn = signal<ComputedColumnDefinition>(createEmptyComputedColumn());
   protected readonly conditionOperators = CONDITION_OPERATORS;
+
+  // Coloring state for template
+  protected readonly rowColors = this.coloringState.rowColors;
+  protected readonly columnColors = this.coloringState.columnColors;
+  protected readonly activeColorPicker = this.coloringState.activeColorPicker;
+  protected readonly colorPalette = COLOR_PALETTE;
 
   // ============================================================================
   // Computed Properties
@@ -218,6 +252,9 @@ export class Table<T extends Record<string, any> = any> {
     let cols = processColumns(this.allColumns());
     cols = applyCustomWidths(cols, this.resizeState);
     cols = applyColumnOrder(cols, this.reorderState);
+    
+    // Apply dynamic freeze state
+    cols = applyDynamicFreeze(cols, this.columnFreezeState);
     
     // Filter out hidden columns
     const hidden = this.hiddenColumns();
@@ -398,8 +435,9 @@ export class Table<T extends Record<string, any> = any> {
     });
   }
 
-  protected onPageSizeChange(size: number): void {
-    changePageSize(size, this.paginationState, {
+  protected onPageSizeChange(size: number | string): void {
+    const numericSize = typeof size === 'string' ? parseInt(size, 10) : size;
+    changePageSize(numericSize, this.paginationState, {
       totalItems: () => this.totalItems(),
       onPageChange: (e) => this.pageChange.emit(e),
     });
@@ -575,6 +613,130 @@ export class Table<T extends Record<string, any> = any> {
   }
 
   // ============================================================================
+  // Coloring Methods
+  // ============================================================================
+  protected openRowColorPicker(row: T, event: MouseEvent): void {
+    event.stopPropagation();
+    const keyField = this.mergedConfig().rowKeyField || 'id';
+    const rowKey = row[keyField];
+    openColorPicker(this.coloringState, {
+      type: 'row',
+      rowKey,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  }
+
+  protected openColumnColorPicker(columnKey: string, event: MouseEvent): void {
+    event.stopPropagation();
+    openColorPicker(this.coloringState, {
+      type: 'column',
+      columnKey,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  }
+
+  protected openCellColorPicker(row: T, columnKey: string, event: MouseEvent): void {
+    event.stopPropagation();
+    const keyField = this.mergedConfig().rowKeyField || 'id';
+    const rowKey = row[keyField];
+    openColorPicker(this.coloringState, {
+      type: 'cell',
+      rowKey,
+      columnKey,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  }
+
+  protected closeColorPicker(): void {
+    closeColorPicker(this.coloringState);
+  }
+
+  protected applyColor(color: string): void {
+    const context = this.activeColorPicker();
+    if (!context) return;
+
+    switch (context.type) {
+      case 'row':
+        setRowColor(this.coloringState, context.rowKey, color);
+        break;
+      case 'column':
+        setColumnColor(this.coloringState, context.columnKey!, color);
+        break;
+      case 'cell':
+        setCellColor(this.coloringState, context.rowKey, context.columnKey!, color);
+        break;
+    }
+  }
+
+  protected getRowBackgroundColor(row: T): string {
+    const keyField = this.mergedConfig().rowKeyField || 'id';
+    const rowKey = row[keyField];
+    return getRowColor(this.coloringState, rowKey);
+  }
+
+  protected getColumnBackgroundColor(columnKey: string): string {
+    return getColumnColor(this.coloringState, columnKey);
+  }
+
+  protected getCellBackgroundColor(row: T, columnKey: string): string {
+    const keyField = this.mergedConfig().rowKeyField || 'id';
+    const rowKey = row[keyField];
+    return getResolvedCellColor(this.coloringState, rowKey, columnKey);
+  }
+
+  protected getCellTextColor(row: T, columnKey: string): string {
+    const bgColor = this.getCellBackgroundColor(row, columnKey);
+    return getTextColorForBackground(bgColor);
+  }
+
+  protected clearAllTableColors(): void {
+    clearAllColors(this.coloringState);
+  }
+
+  // ============================================================================
+  // Column Freeze Methods
+  // ============================================================================
+  protected freezeColumn(columnKey: string, position: 'left' | 'right' = 'left'): void {
+    if (position === 'right') {
+      freezeColumnRight(this.columnFreezeState, columnKey);
+    } else {
+      freezeColumnLeft(this.columnFreezeState, columnKey);
+    }
+  }
+
+  protected unfreezeColumn(columnKey: string): void {
+    unfreezeColumn(this.columnFreezeState, columnKey);
+  }
+
+  protected toggleFreeze(columnKey: string, position: 'left' | 'right' = 'left'): void {
+    toggleColumnFreeze(this.columnFreezeState, columnKey, position);
+  }
+
+  protected isColumnFrozen(columnKey: string): boolean {
+    return isColumnFrozen(this.columnFreezeState, columnKey);
+  }
+
+  protected getColumnFreezePosition(columnKey: string): 'left' | 'right' | null {
+    return getColumnFreezePosition(this.columnFreezeState, columnKey);
+  }
+
+  protected getEffectiveFreezePosition(column: ColumnConfig<T>): 'left' | 'right' | null {
+    // Check if there's a dynamic override for this column
+    const hasDynamicState = this.columnFreezeState.frozenColumns().has(column.key);
+    
+    if (hasDynamicState) {
+      // Use dynamic state (can be 'left', 'right', or null for unfrozen)
+      return this.columnFreezeState.frozenColumns().get(column.key) || null;
+    }
+    
+    // Fall back to original column config
+    if (column.frozen) {
+      return column.frozenPosition === 'right' ? 'right' : 'left';
+    }
+    return null;
+  }
+
+  // ============================================================================
   // Utility Methods (delegated to feature)
   // ============================================================================
   protected getCellValue(row: T, column: ColumnConfig<T>): any {
@@ -642,5 +804,6 @@ export class Table<T extends Record<string, any> = any> {
     this.resetSort();
     this.resetFilters();
     resetPagination(this.paginationState);
+    this.clearAllTableColors();
   }
 }

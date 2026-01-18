@@ -1,6 +1,3 @@
-// ============================================================================
-// Dynamic Table Types & Interfaces
-// ============================================================================
 
 export interface ColumnConfig<T = any> {
   /** Unique key/field name in data object */
@@ -100,6 +97,7 @@ export interface TableConfig {
   enableColumnReorder?: boolean;
   enableVirtualScroll?: boolean;
   enableFrozenColumns?: boolean;
+  enableColoring?: boolean;
 
   /** Virtual scroll settings */
   virtualScrollItemHeight?: number;
@@ -176,10 +174,11 @@ export const DEFAULT_TABLE_CONFIG: TableConfig = {
   enableColumnReorder: true,
   enableVirtualScroll: false,
   enableFrozenColumns: true,
+  enableColoring: true,
   virtualScrollItemHeight: 48,
   virtualScrollBufferSize: 5,
   pageSize: 10,
-  pageSizeOptions: [10, 25, 50, 100],
+  pageSizeOptions: [10, 25, 50, 100, -1],
   selectionMode: 'multiple',
   showSelectionCheckbox: true,
   stripedRows: true,

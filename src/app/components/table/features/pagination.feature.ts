@@ -23,8 +23,10 @@ export function createPaginationState(initialPageSize: number = 10): PaginationS
 
 /**
  * Computes total number of pages
+ * pageSize of -1 means show all (1 page)
  */
 export function computeTotalPages(totalItems: number, pageSize: number): number {
+  if (pageSize === -1) return 1;
   return Math.ceil(totalItems / pageSize);
 }
 
@@ -100,6 +102,7 @@ export function goToNextPage(state: PaginationState, deps: PaginationDeps): void
 
 /**
  * Applies pagination to data
+ * pageSize of -1 means show all
  */
 export function applyPagination<T>(
   data: T[],
@@ -107,6 +110,9 @@ export function applyPagination<T>(
   enablePagination: boolean
 ): T[] {
   if (!enablePagination) return data;
+  
+  // -1 means show all
+  if (state.pageSize() === -1) return data;
 
   const start = (state.currentPage() - 1) * state.pageSize();
   const end = start + state.pageSize();

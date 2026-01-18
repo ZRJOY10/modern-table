@@ -150,6 +150,39 @@ import {
   getColumnFreezePosition,
   isColumnFrozen,
   applyDynamicFreeze,
+  // Export
+  ExportFormat,
+  ExportOptions,
+  exportTable,
+  // Footer Aggregation
+  FooterAggregationState,
+  AggregationResult,
+  AggregationType,
+  AGGREGATION_TYPES,
+  createFooterAggregationState,
+  addAggregation,
+  removeAggregation,
+  toggleAggregation,
+  hasAggregation,
+  getAggregation,
+  getAggregationTypes,
+  setUseSelectedOnly,
+  computeAggregationResults,
+  // Theme
+  ThemeState,
+  ThemeId,
+  TableTheme,
+  ThemeColors,
+  TABLE_THEMES,
+  createThemeState,
+  getCurrentTheme,
+  getThemeColors,
+  setTheme,
+  loadSavedTheme,
+  toggleThemeDropdown,
+  closeThemeDropdown,
+  getAllThemes,
+  getThemeCssVariables,
 } from './features';
 
 @Component({
@@ -201,6 +234,8 @@ export class Table<T extends Record<string, any> = any> {
   private readonly computedColumnsState: ComputedColumnsState = createComputedColumnsState();
   private readonly coloringState: ColoringState = createColoringState();
   private readonly columnFreezeState: ColumnFreezeState = createColumnFreezeState();
+  private readonly footerAggregationState: FooterAggregationState = createFooterAggregationState();
+  private readonly themeState: ThemeState = createThemeState();
 
   // Expose state signals for template
   protected readonly sorts = this.sortingState.sorts;
@@ -226,6 +261,22 @@ export class Table<T extends Record<string, any> = any> {
   protected readonly columnColors = this.coloringState.columnColors;
   protected readonly activeColorPicker = this.coloringState.activeColorPicker;
   protected readonly colorPalette = COLOR_PALETTE;
+
+  // Export state
+  protected readonly exportDropdownOpen = signal(false);
+
+  // Footer aggregation state for template
+  protected readonly aggregations = this.footerAggregationState.aggregations;
+  protected readonly useSelectedOnlyForAggregation = this.footerAggregationState.useSelectedOnly;
+  protected readonly aggregationTypes = AGGREGATION_TYPES;
+  protected readonly aggregationDropdownOpen = signal<string | null>(null);
+
+  // Theme state for template
+  protected readonly currentThemeId = this.themeState.currentTheme;
+  protected readonly themeDropdownOpen = this.themeState.dropdownOpen;
+  protected readonly availableThemes = TABLE_THEMES;
+  protected readonly themeColors = computed(() => getThemeColors(this.themeState));
+  protected readonly themeCssVars = computed(() => getThemeCssVariables(getCurrentTheme(this.themeState)));
 
   // ============================================================================
   // Computed Properties
@@ -326,10 +377,23 @@ export class Table<T extends Record<string, any> = any> {
     computePageNumbers(this.totalPages(), this.currentPage())
   );
 
+  // Footer aggregation results
+  protected readonly aggregationResults = computed<AggregationResult[]>(() =>
+    computeAggregationResults(
+      this.sortedData(),
+      this.getSelectedRows(),
+      this.processedColumns(),
+      this.footerAggregationState
+    )
+  );
+
   // ============================================================================
   // Constructor & Effects
   // ============================================================================
   constructor() {
+    // Load saved theme from localStorage
+    loadSavedTheme(this.themeState);
+
     // Initialize page size from config
     effect(() => {
       const config = this.mergedConfig();
@@ -478,6 +542,30 @@ export class Table<T extends Record<string, any> = any> {
       processedColumns: () => this.processedColumns(),
       onColumnResize: (e) => this.columnResize.emit(e),
     });
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+
+    // Close aggregation dropdown when clicking outside
+    if (this.aggregationDropdownOpen()) {
+      // Check if click is inside an aggregation dropdown or its trigger button
+      const isInsideDropdown = target.closest('.aggregation-dropdown') || 
+                               target.closest('.aggregation-dropdown-trigger');
+      if (!isInsideDropdown) {
+        this.aggregationDropdownOpen.set(null);
+      }
+    }
+
+    // Close theme dropdown when clicking outside
+    if (this.themeDropdownOpen()) {
+      const isInsideTheme = target.closest('.theme-dropdown') || 
+                            target.closest('.theme-dropdown-trigger');
+      if (!isInsideTheme) {
+        this.closeThemeDropdown();
+      }
+    }
   }
 
   // ============================================================================
@@ -734,6 +822,172 @@ export class Table<T extends Record<string, any> = any> {
       return column.frozenPosition === 'right' ? 'right' : 'left';
     }
     return null;
+  }
+
+  // ============================================================================
+  // Export Methods
+  // ============================================================================
+  protected toggleExportDropdown(): void {
+    this.exportDropdownOpen.update(v => !v);
+  }
+
+  protected closeExportDropdown(): void {
+    this.exportDropdownOpen.set(false);
+  }
+
+  protected exportData(format: ExportFormat, selectedOnly: boolean = false): void {
+    this.closeExportDropdown();
+    
+    const selectedData = this.getSelectedRows();
+    const dataToExport = this.sortedData();
+    const keyField = this.mergedConfig().rowKeyField || 'id';
+    
+    console.log('Export Debug:', {
+      format,
+      selectedOnly,
+      totalDataCount: this.data().length,
+      filteredDataCount: this.filteredData().length,
+      sortedDataCount: dataToExport.length,
+      paginatedDataCount: this.paginatedData().length,
+      selectedDataCount: selectedData.length
+    });
+    
+    exportTable(
+      dataToExport,
+      selectedData,
+      this.processedColumns(),
+      (row, col) => this.getCellValue(row, col),
+      {
+        format,
+        selectedOnly,
+        includeComputed: true,
+        includeHeaders: true,
+        fileName: `table-export-${new Date().toISOString().slice(0, 10)}`,
+        sheetName: 'Data',
+        colorInfo: {
+          getCellColor: (rowKey: any, columnKey: string) => getResolvedCellColor(this.coloringState, rowKey, columnKey),
+          getTextColor: (backgroundColor: string) => getTextColorForBackground(backgroundColor),
+          getRowKey: (row: any) => row[keyField],
+        },
+        aggregationResults: this.aggregationResults(),
+      }
+    );
+  }
+
+  protected exportCSV(): void {
+    this.exportData('csv');
+  }
+
+  protected exportExcel(): void {
+    this.exportData('excel');
+  }
+
+  protected exportPDF(): void {
+    this.exportData('pdf');
+  }
+
+  protected exportWord(): void {
+    this.exportData('word');
+  }
+
+  protected exportSelectedCSV(): void {
+    this.exportData('csv', true);
+  }
+
+  protected exportSelectedExcel(): void {
+    this.exportData('excel', true);
+  }
+
+  protected printTable(): void {
+    this.exportData('print');
+  }
+
+  // ============================================================================
+  // Footer Aggregation Methods
+  // ============================================================================
+  protected toggleAggregationDropdown(columnKey: string): void {
+    if (this.aggregationDropdownOpen() === columnKey) {
+      this.aggregationDropdownOpen.set(null);
+    } else {
+      this.aggregationDropdownOpen.set(columnKey);
+    }
+  }
+
+  protected closeAggregationDropdown(): void {
+    this.aggregationDropdownOpen.set(null);
+  }
+
+  protected toggleColumnAggregation(columnKey: string, type: AggregationType = 'sum'): void {
+    toggleAggregation(this.footerAggregationState, columnKey, type);
+  }
+
+  protected setColumnAggregation(columnKey: string, type: AggregationType, label?: string): void {
+    addAggregation(this.footerAggregationState, { columnKey, type, label });
+  }
+
+  protected removeColumnAggregation(columnKey: string, type?: AggregationType): void {
+    removeAggregation(this.footerAggregationState, columnKey, type);
+  }
+
+  protected hasColumnAggregation(columnKey: string, type?: AggregationType): boolean {
+    return hasAggregation(this.footerAggregationState, columnKey, type);
+  }
+
+  protected getColumnAggregationTypes(columnKey: string): AggregationType[] {
+    return getAggregationTypes(this.footerAggregationState, columnKey);
+  }
+
+  protected toggleColumnAggregationType(columnKey: string, type: AggregationType): void {
+    toggleAggregation(this.footerAggregationState, columnKey, type);
+  }
+
+  protected addCustomAggregation(columnKey: string, value: string): void {
+    if (!value.trim()) return;
+    
+    // Try to parse as number if it looks like one
+    const numValue = parseFloat(value);
+    const customValue = !isNaN(numValue) && value.trim() === numValue.toString() ? numValue : value.trim();
+    
+    addAggregation(this.footerAggregationState, {
+      columnKey,
+      type: 'custom',
+      customValue,
+    });
+  }
+
+  protected removeCustomAggregation(columnKey: string, customValue: string | number | boolean): void {
+    this.footerAggregationState.aggregations.update(aggs => 
+      aggs.filter(a => !(a.columnKey === columnKey && a.type === 'custom' && a.customValue === customValue))
+    );
+  }
+
+  protected toggleUseSelectedOnly(): void {
+    const current = this.footerAggregationState.useSelectedOnly();
+    setUseSelectedOnly(this.footerAggregationState, !current);
+  }
+
+  protected getAggregationForColumn(columnKey: string): AggregationResult | undefined {
+    return this.aggregationResults().find(r => r.columnKey === columnKey);
+  }
+
+  // ============================================================================
+  // Theme Methods
+  // ============================================================================
+  protected toggleThemeDropdown(): void {
+    toggleThemeDropdown(this.themeState);
+  }
+
+  protected closeThemeDropdown(): void {
+    closeThemeDropdown(this.themeState);
+  }
+
+  protected selectTheme(themeId: ThemeId): void {
+    setTheme(this.themeState, themeId);
+    this.closeThemeDropdown();
+  }
+
+  protected getCurrentTheme(): TableTheme {
+    return getCurrentTheme(this.themeState);
   }
 
   // ============================================================================

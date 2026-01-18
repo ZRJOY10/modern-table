@@ -13,3 +13,6 @@ export * from './column-visibility.feature';
 export * from './computed-columns.feature';
 export * from './coloring.feature';
 export * from './column-freeze.feature';
+export * from './export.feature';
+export * from './footer-aggregation.feature';
+export * from './theme.feature';

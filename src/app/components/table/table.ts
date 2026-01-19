@@ -383,7 +383,15 @@ export class Table<T extends Record<string, any> = any> {
       this.sortedData(),
       this.getSelectedRows(),
       this.processedColumns(),
-      this.footerAggregationState
+      this.footerAggregationState,
+      // Value getter that handles both regular and computed columns
+      (row, columnKey) => {
+        const column = this.allColumns().find(c => c.key === columnKey);
+        if (column) {
+          return this.getCellValue(row, column);
+        }
+        return (row as any)[columnKey];
+      }
     )
   );
 

@@ -179,20 +179,35 @@ export function setUseSelectedOnly(
 // ============================================================================
 
 /**
+ * Gets a value from a row, supporting both regular and computed columns
+ */
+function getRowValue<T>(
+  row: T,
+  columnKey: string,
+  valueGetter?: (row: T, columnKey: string) => any
+): any {
+  if (valueGetter) {
+    return valueGetter(row, columnKey);
+  }
+  return (row as any)[columnKey];
+}
+
+/**
  * Calculates aggregation value for a column
  */
 export function calculateAggregation<T>(
   data: T[],
   columnKey: string,
   type: AggregationType,
-  customValue?: string | number | boolean
+  customValue?: string | number | boolean,
+  valueGetter?: (row: T, columnKey: string) => any
 ): number {
   if (data.length === 0) return 0;
 
   // For custom, count rows where value matches the customValue exactly
   if (type === 'custom' && customValue !== undefined) {
     return data.filter(row => {
-      const val = (row as any)[columnKey];
+      const val = getRowValue(row, columnKey, valueGetter);
       // Handle type conversion for comparison
       if (typeof customValue === 'number') {
         return Number(val) === customValue;
@@ -208,7 +223,7 @@ export function calculateAggregation<T>(
   // For count, count all non-null/non-undefined values (any type: string, boolean, number, etc.)
   if (type === 'count') {
     return data.filter(row => {
-      const val = (row as any)[columnKey];
+      const val = getRowValue(row, columnKey, valueGetter);
       return val !== null && val !== undefined && val !== '';
     }).length;
   }
@@ -216,7 +231,7 @@ export function calculateAggregation<T>(
   // For other aggregations, only use numeric values
   const values = data
     .map(row => {
-      const val = (row as any)[columnKey];
+      const val = getRowValue(row, columnKey, valueGetter);
       return typeof val === 'number' ? val : parseFloat(val);
     })
     .filter(v => !isNaN(v));
@@ -296,7 +311,8 @@ export function computeAggregationResults<T>(
   data: T[],
   selectedData: T[],
   columns: ColumnConfig<T>[],
-  state: FooterAggregationState
+  state: FooterAggregationState,
+  valueGetter?: (row: T, columnKey: string) => any
 ): AggregationResult[] {
   const aggregations = state.aggregations();
   const useSelectedOnly = state.useSelectedOnly();
@@ -308,7 +324,7 @@ export function computeAggregationResults<T>(
     const column = columns.find(c => c.key === agg.columnKey);
     const columnTitle = column?.title || agg.columnKey;
     
-    const value = calculateAggregation(dataToAggregate, agg.columnKey, agg.type, agg.customValue);
+    const value = calculateAggregation(dataToAggregate, agg.columnKey, agg.type, agg.customValue, valueGetter);
     const formattedValue = formatAggregationValue(value, agg.type, agg.format);
     const label = getAggregationLabel(agg.type, columnTitle, agg.label, agg.customValue);
     
